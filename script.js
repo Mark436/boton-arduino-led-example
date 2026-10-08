@@ -5,13 +5,14 @@ const ROLE = window.location.pathname === "/viewer" ? "viewer" : "owner";
 
 /* Simula el serial por consola (no requiere Arduino).
    Cambiar a true para desarrollar el resto de la interfaz. */
-const DEV_MODE = false;
+const DEV_MODE = true;
 
 /* Estado central de la sesión. El backend será la fuente de verdad;
    cuando haya sincronización se aplica con applySessionState(). */
 const state = {
   encendido: false,
   arduinoConectado: false,
+  maxViewers: 1,
 };
 
 const session = {
@@ -43,7 +44,11 @@ async function ensureOwnerSession() {
     const res = await fetch("/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ encendido: false, arduinoConectado: false }),
+      body: JSON.stringify({
+        encendido: false,
+        arduinoConectado: false,
+        maxViewers: state.maxViewers,
+      }),
     });
     if (!res.ok) throw new Error();
 
@@ -142,12 +147,31 @@ class QrModal extends Modal {
       return;
     }
 
-    // Por ahora se muestra la URL; aquí irá el SVG del QR.
-    const url = document.createElement("code");
-    url.className = "qr-url";
-    url.textContent = viewerUrl();
-    url.title = viewerUrl();
-    this.contentEl.appendChild(url);
+    const url = viewerUrl();
+
+    // QR generado en el navegador (qrcode-generator por CDN).
+    if (typeof qrcode === "function") {
+      try {
+        const qr = qrcode(0, "M");
+        qr.addData(url);
+        qr.make();
+        this.contentEl.innerHTML = qr.createSvgTag({
+          cellSize: 4,
+          margin: 2,
+          scalable: true,
+        });
+        return;
+      } catch (_err) {
+        // cae al texto si algo falla
+      }
+    }
+
+    // Fallback sin librería / sin internet: mostrar la URL.
+    const code = document.createElement("code");
+    code.className = "qr-url";
+    code.textContent = url;
+    code.title = url;
+    this.contentEl.appendChild(code);
   }
 }
 
@@ -212,6 +236,29 @@ class UsersApi {
 
     return true;
   }
+
+  static async setMaxViewers(max) {
+    let res;
+    try {
+      res = await fetch(this._base(), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...this._headers() },
+        body: JSON.stringify({ maxViewers: max }),
+      });
+    } catch (_err) {
+      throw new Error("No se pudo contactar con el servidor.");
+    }
+
+    if (res.status === 404 || res.status === 405 || res.status === 501) {
+      throw new Error(
+        "Cambiar el máximo no disponible todavía (backend en desarrollo).",
+      );
+    }
+    if (!res.ok)
+      throw new Error("No se pudo actualizar el máximo de usuarios.");
+
+    return true;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -222,13 +269,53 @@ class UsersModal extends Modal {
     super(overlay);
     this.listEl = document.getElementById("usersList");
     this.countEl = document.getElementById("usersCount");
+    this.maxValueEl = document.getElementById("maxUsersValue");
+    this.maxDecBtn = document.getElementById("maxUsersDec");
+    this.maxIncBtn = document.getElementById("maxUsersInc");
+
     openBtn.addEventListener("click", () => this.open());
     closeBtn.addEventListener("click", () => this.close());
+    this.maxDecBtn.addEventListener("click", () => this.changeMax(-1));
+    this.maxIncBtn.addEventListener("click", () => this.changeMax(1));
+    this.maxValueEl.addEventListener("change", () =>
+      this.setMax(this.maxValueEl.value),
+    );
   }
 
   async open() {
+    this.renderMax();
     super.open();
     await this.refresh();
+  }
+
+  renderMax() {
+    this.maxValueEl.value = state.maxViewers;
+    this.maxDecBtn.disabled = state.maxViewers <= 1;
+  }
+
+  changeMax(delta) {
+    return this.setMax(state.maxViewers + delta);
+  }
+
+  async setMax(value) {
+    const next = Math.max(1, Math.floor(Number(value) || 1));
+
+    if (next === state.maxViewers) {
+      this.renderMax();
+      return;
+    }
+
+    // Actualización optimista: el backend será la fuente de verdad cuando
+    // exponga el endpoint para cambiar el máximo.
+    state.maxViewers = next;
+    this.renderMax();
+
+    try {
+      await UsersApi.setMaxViewers(next);
+      toast.show(`Máximo de viewers: ${next}`);
+    } catch (err) {
+      toast.show(err.message);
+    }
   }
 
   async refresh() {

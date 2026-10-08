@@ -98,11 +98,42 @@
         <h2>Usuarios en la sesión</h2>
         <p id="usersCount" class="users-count"></p>
         <ul id="usersList" class="users-list"></ul>
+        <div class="users-limit">
+          <span class="users-limit-label">Máximo de viewers</span>
+          <div class="stepper">
+            <button
+              id="maxUsersDec"
+              class="stepper-btn"
+              type="button"
+              aria-label="Restar"
+            >
+              &minus;
+            </button>
+            <input
+              id="maxUsersValue"
+              class="stepper-value"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              aria-label="Máximo de viewers"
+            />
+            <button
+              id="maxUsersInc"
+              class="stepper-btn"
+              type="button"
+              aria-label="Sumar"
+            >
+              +
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
     <div id="toast" class="toast" role="status" hidden></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
     <script src="serial.js"></script>
     <script src="script.js"></script>
   </body>

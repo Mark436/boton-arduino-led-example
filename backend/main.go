@@ -128,6 +128,30 @@ func (server *Server) joinSession(writer http.ResponseWriter,request *http.Reque
 	})
 	
 }
+
+func (server*Server) getClients(writer http.ResponseWriter, request *http.Request){
+	sessionID:= request.PathValue("sessionID")
+
+	server.Mutex.RLock()
+	session, ok :=server.Sessions[sessionID]
+	server.Mutex.RUnlock()
+
+	if !ok {
+		http.Error(writer,"Sesion no encontrada",http.StatusNotFound)
+		return
+	}
+
+	session.Mutex.RLock()
+	clientIDs := make([]string, 0, len(session.Clients))
+
+	for clientID := range session.Clients {
+	    clientIDs = append(clientIDs, clientID)
+	}
+	session.Mutex.RUnlock()
+
+	writer.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(writer).Encode(clientIDs)
+}
 func (server*Server) websocketHandler(writer http.ResponseWriter, request *http.Request){
 	sessionID:= request.PathValue("sessionID")
 	clientID:=request.URL.Query().Get("client")
@@ -179,11 +203,20 @@ func (server*Server) websocketHandler(writer http.ResponseWriter, request *http.
 			break
 		}
 
+		var mensaje Mensaje
+
+		err = json.Unmarshal(message,&mensaje)
+		if err!=nil{
+			log.Println("Mensaje invalido")
+			continue
+		}
+
 		log.Printf(
-		"Mensaje recibido de %s: %s",
+		"Mensaje recibido de %s: %+v",
 		client.ID,
-		message,
+		mensaje,
 		)
+		log.Printf("Tipo: %s Dato: %s",mensaje.Tipo,mensaje.Dato)
   }
 
 	//limpiar conexión
@@ -219,6 +252,7 @@ func main() {
 // backend
 	http.HandleFunc("/session",server.createSession)
 	http.HandleFunc("/session/{sessionID}", server.joinSession)
+	http.HandleFunc("/session/{sessionID}/clients", server.getClients)
 	http.HandleFunc("/ws/{sessionID}",server.websocketHandler)
 	
 	if err := http.ListenAndServe(":8080", nil); err != nil {
