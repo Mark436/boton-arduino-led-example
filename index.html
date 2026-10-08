@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interfaz LED</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="card">
+      <button
+        id="usersBtn"
+        class="icon-btn users-btn owner-panel"
+        type="button"
+        aria-label="Administrar usuarios"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+      </button>
+
+      <button
+        id="qrBtn"
+        class="icon-btn qr-btn owner-panel"
+        type="button"
+        aria-label="Abrir QR"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <path d="M14 14h3v3h-3z" />
+          <path d="M21 14v3M14 21h3M21 21h.01M17 17h.01M21 17h.01M17 21v.01" />
+        </svg>
+      </button>
+
+      <h1>Control LED</h1>
+
+      <button id="ledButton" class="led-btn off" type="button">
+        <span id="ledLabel">OFF</span>
+      </button>
+
+      <button id="connectBtn" class="connect-btn owner-panel" type="button">
+        Conectar Arduino (COM)
+      </button>
+      <p id="status" class="status">Desconectado</p>
+    </main>
+
+    <div id="qrModal" class="modal-overlay" hidden>
+      <div class="modal">
+        <button
+          id="qrClose"
+          class="modal-close"
+          type="button"
+          aria-label="Cerrar"
+        >
+          &times;
+        </button>
+        <h2>Código QR</h2>
+        <div id="qrContent" class="qr-box">
+          <!-- AQUÍ VA EL QR (svg) -->
+        </div>
+      </div>
+    </div>
+
+    <div id="usersModal" class="modal-overlay" hidden>
+      <div class="modal">
+        <button
+          id="usersClose"
+          class="modal-close"
+          type="button"
+          aria-label="Cerrar"
+        >
+          &times;
+        </button>
+        <h2>Usuarios en la sesión</h2>
+        <p id="usersCount" class="users-count"></p>
+        <ul id="usersList" class="users-list"></ul>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" hidden></div>
+
+    <script src="serial.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

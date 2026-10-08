@@ -1,0 +1,297 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f0f2f5;
+  color: #222;
+}
+
+.card {
+  position: relative;
+  background: #ffffff;
+  width: 340px;
+  padding: 40px 50px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+
+.icon-btn {
+  position: absolute;
+  top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #eef1f5;
+  color: #555;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.icon-btn[hidden] {
+  display: none !important;
+}
+
+.icon-btn:hover {
+  background: #4a90d9;
+  color: #fff;
+}
+
+.qr-btn {
+  left: 14px;
+}
+
+.users-btn {
+  right: 14px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+.modal {
+  position: relative;
+  background: #fff;
+  padding: 28px 32px;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.modal h2 {
+  font-size: 1.2rem;
+  margin-bottom: 18px;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  color: #888;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: #222;
+}
+
+.qr-box {
+  width: 256px;
+  height: 256px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+/* Toast de notificación (centrado, rojo claro semitransparente) */
+.toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  z-index: 100;
+  max-width: 320px;
+  padding: 16px 22px;
+  border-radius: 14px;
+  background: rgba(255, 143, 143, 0.88);
+  border: 1px solid rgba(183, 28, 28, 0.4);
+  color: #7f1010;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+}
+
+.toast[hidden] {
+  display: none;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Modal de usuarios */
+.users-count {
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 12px;
+}
+
+.users-list {
+  list-style: none;
+  min-width: 280px;
+  max-height: 260px;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.user-item:last-child {
+  border-bottom: none;
+}
+
+.user-id {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #444;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-role {
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: #eef1f5;
+  color: #555;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.user-delete {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: #fdecea;
+  color: #c0392b;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.user-delete:hover {
+  background: #d94a4a;
+  color: #fff;
+}
+
+.user-delete:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.users-empty {
+  color: #aaa;
+  font-size: 0.9rem;
+  padding: 12px 0;
+  text-align: center;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 24px;
+}
+
+/* Botón LED: gris claro = OFF, verde claro = ON */
+.led-btn {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  margin-bottom: 28px;
+  border: none;
+  font-size: 1.4rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition:
+    background 0.25s,
+    box-shadow 0.25s,
+    transform 0.1s;
+}
+
+.led-btn.off {
+  background: #d9d9d9;
+  color: #555;
+  box-shadow:
+    inset 0 -4px 8px rgba(0, 0, 0, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.led-btn.on {
+  background: #90ee90;
+  color: #1b5e20;
+  box-shadow:
+    0 0 20px rgba(144, 238, 144, 0.7),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.led-btn:active {
+  transform: scale(0.96);
+}
+
+.connect-btn {
+  width: 100%;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: #4a90d9;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.connect-btn:hover {
+  background: #357abd;
+}
+
+.connect-btn.connected {
+  background: #d94a4a;
+}
+
+.connect-btn.connected:hover {
+  background: #c0392b;
+}
+
+.status {
+  margin-top: 14px;
+  font-size: 0.9rem;
+  color: #888;
+}
