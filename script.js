@@ -120,8 +120,30 @@ class Modal {
 class QrModal extends Modal {
   constructor(overlay, openBtn, closeBtn) {
     super(overlay);
+    this.contentEl = document.getElementById("qrContent");
     openBtn.addEventListener("click", () => this.open());
     closeBtn.addEventListener("click", () => this.close());
+  }
+
+  open() {
+    this.render();
+    super.open();
+  }
+
+  render() {
+    this.contentEl.replaceChildren();
+
+    if (!session.sessionId) {
+      this.contentEl.textContent = "No hay una sesión activa todavía.";
+      return;
+    }
+
+    // Por ahora se muestra la URL; aquí irá el SVG del QR.
+    const url = document.createElement("code");
+    url.className = "qr-url";
+    url.textContent = viewerUrl();
+    url.title = viewerUrl();
+    this.contentEl.appendChild(url);
   }
 }
 

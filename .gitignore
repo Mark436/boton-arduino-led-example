@@ -1,0 +1,29 @@
+# Binarios
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/boton-arduino-led-example
+/backend/main
+/backend/server
+
+# Go
+*.test
+*.out
+vendor/
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node (si se usa para herramientas)
+node_modules/
