@@ -3,11 +3,12 @@
  * No conoce la interfaz: solo conecta, desconecta y envía datos al puerto.
  */
 class SerialConnection {
-  constructor(baudRate = 9600) {
+  constructor({ baudRate = 9600, dev = false } = {}) {
     this.port = null;
     this.connected = false;
     this.connecting = false;
     this.baudRate = baudRate;
+    this.dev = dev;
     this.onStatusChange = null;
   }
 
@@ -17,6 +18,10 @@ class SerialConnection {
 
   async connect() {
     if (this.connected || this.connecting) return this.connected;
+
+    if (this.dev) {
+      return this._connectDev();
+    }
 
     if (!this.supported) {
       this._notify("Tu navegador no soporta Web Serial (usa Chrome o Edge)");
@@ -43,7 +48,30 @@ class SerialConnection {
     }
   }
 
+  async _connectDev() {
+    this.connecting = true;
+    this._notify("Conectando... (modo dev)");
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    this.connecting = false;
+    this.connected = true;
+    console.log(
+      `[serial:dev] conexión simulada @${this.baudRate} (sin Arduino real)`,
+    );
+    this._notify("Conectado (modo dev)");
+    return true;
+  }
+
   async disconnect() {
+    if (this.dev) {
+      if (!this.connected) return true;
+      this.connected = false;
+      console.log("[serial:dev] desconexión simulada");
+      this._notify("Desconectado (modo dev)");
+      return true;
+    }
+
     if (this.port === null) return true;
 
     try {
@@ -61,6 +89,12 @@ class SerialConnection {
 
   async write(data) {
     if (!this.connected) return false;
+
+    if (this.dev) {
+      const led = data === "1" ? "ON" : "OFF";
+      console.log(`[serial:dev] TX "${data}" → LED ${led}`);
+      return true;
+    }
 
     const encoder = new TextEncoder();
     const writer = this.port.writable.getWriter();

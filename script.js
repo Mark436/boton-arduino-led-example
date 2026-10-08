@@ -3,6 +3,10 @@
 /* ------------------------------------------------------------------ */
 const ROLE = window.location.pathname === "/viewer" ? "viewer" : "owner";
 
+/* Simula el serial por consola (no requiere Arduino).
+   Cambiar a true para desarrollar el resto de la interfaz. */
+const DEV_MODE = false;
+
 /* Estado central de la sesión. El backend será la fuente de verdad;
    cuando haya sincronización se aplica con applySessionState(). */
 const state = {
@@ -59,7 +63,7 @@ function viewerUrl() {
     : "";
 }
 
-const connection = new SerialConnection();
+const connection = new SerialConnection({ dev: DEV_MODE });
 
 const statusEl = document.getElementById("status");
 const connectBtn = document.getElementById("connectBtn");
@@ -165,7 +169,9 @@ class UsersApi {
   static async list() {
     let res;
     try {
-      res = await fetch(`${this._base()}/clients`, { headers: this._headers() });
+      res = await fetch(`${this._base()}/clients`, {
+        headers: this._headers(),
+      });
     } catch (_err) {
       throw new Error("No se pudo contactar con el servidor.");
     }
@@ -326,8 +332,8 @@ connection.onStatusChange = (message, connected) => {
   state.arduinoConectado = connected;
   statusEl.textContent = message;
   connectBtn.textContent = connected
-    ? "Desconectar"
-    : "Conectar Arduino (COM)";
+    ? `Desconectar${DEV_MODE ? " (dev)" : ""}`
+    : `Conectar Arduino (COM)${DEV_MODE ? " · dev" : ""}`;
   connectBtn.classList.toggle("connected", connected);
 };
 
