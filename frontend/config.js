@@ -12,7 +12,7 @@ const ROLE = window.location.pathname === "/visitor" ? "visitor" : "host";
 
 /* Simula el serial por consola (no requiere Arduino).
    Cambiar a true para desarrollar el resto de la interfaz. */
-const DEV_MODE = false;
+const DEV_MODE = true;
 
 /* Estado central de la sesión. El backend será la fuente de verdad;
    cuando haya sincronización se aplica con applySessionState(). */

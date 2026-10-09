@@ -35,18 +35,19 @@ El servidor queda en `http://localhost:8080` y sirve el frontend directamente:
 
 Solo necesitas Chrome o Edge (Web Serial API) con una placa Arduino conectada por USB. El backend se encarga de crear la sesión (`POST /session`) y el host obtiene su `sessionId`/`clientId` automáticamente.
 
-El frontend vive en `src/`:
+El frontend vive en `frontend/`:
 
 ```
-src/index.html          → estructura
-src/style.css           → estilos (toast, modales, botones)
-src/config.js           → rol, DEV_MODE, estado, sesión y refs DOM
-src/scripts/serial.js   → librería de comunicación serial
-src/scripts/users-api.js→ UsersApi (provisional)
-src/scripts/ui.js       → Toast y modales (QR, usuarios)
-src/scripts/session.js  → crear/unirse a sesión, URL del QR y render
-src/scripts/realtime.js → Realtime (WebSocket)
-src/scripts/script.js   → punto de entrada: eventos e init
+frontend/index.html           → estructura
+frontend/config.js            → rol, DEV_MODE, estado, sesión y refs DOM
+frontend/styles/style.css     → estilos (toast, modales, botones)
+frontend/favicon.svg          → icono
+frontend/scripts/serial.js    → librería de comunicación serial
+frontend/scripts/users-api.js → UsersApi (provisional)
+frontend/scripts/ui.js        → Toast y modales (QR, usuarios)
+frontend/scripts/session.js   → crear/unirse a sesión, URL del QR y render
+frontend/scripts/realtime.js  → Realtime (WebSocket)
+frontend/scripts/script.js    → punto de entrada: eventos e init
 ```
 
 ### Arduino

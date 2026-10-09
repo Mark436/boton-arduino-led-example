@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -53,55 +54,56 @@ func (server *Server) websocketHandler(writer http.ResponseWriter, request *http
 	client.Mutex.Lock()
 	client.Conn = connection
 	client.Mutex.Unlock()
+	
+	session.Mutex.RLock()
+	led:=session.Encendido
+	arduino:=session.ArduinoConnectado
+	maxViewers:=session.MaxViewers
+	session.Mutex.RUnlock()
+	
+	client.send(mustMarshal(Mensaje{Tipo: "cambiarLED",Dato:mustMarshal(DatoLED{Encendido: led})}))
+	client.send(mustMarshal(Mensaje{Tipo: "cambiarArduino",Dato:mustMarshal(DatoArduino{ArduinoConectado: arduino})}))
+	client.send(mustMarshal(Mensaje{Tipo: "cambiarMaxViewers",Dato:mustMarshal(DatoMaxViewers{MaxViewers: maxViewers})}))
 
-	// ===================== HUECO 1: ESTADO INICIAL AL CONECTAR =================
-	// QUÉ: justo aquí (ya conectado) mandar el estado actual SOLO a este cliente,
-	//      con un mensaje por campo.
-	// POR QUÉ: el join devolvió el estado por HTTP, pero pudo quedar viejo (o el
-	//          navegador puede reconectar el WS más tarde). El servidor es la
-	//          fuente de verdad y debe empujárselo al cliente.
-	// PISTA: lee el estado bajo session.Mutex.RLock() y suelta ANTES de enviar.
-	//
-	// Esqueleto (descomenta y completa):
-	//
-	//   session.Mutex.RLock()
-	//   led := session.Encendido
-	//   arduino := session.ArduinoConnectado
-	//   max := session.MaxViewers
-	//   session.Mutex.RUnlock()
-	//
-	//   client.send(mustMarshal(Mensaje{Tipo: "cambiarLED", Dato: mustMarshal(DatoLED{Encendido: led})}))
-	//   client.send(mustMarshal(Mensaje{Tipo: "cambiarArduino", Dato: mustMarshal(DatoArduino{ArduinoConectado: arduino})}))
-	//   client.send(mustMarshal(Mensaje{Tipo: "cambiarMaxViewers", Dato: mustMarshal(DatoMaxViewers{MaxViewers: max})}))
-	// ===========================================================================
-
-	defer func() {
+	defer func() {//finally para el websocket
 		client.Mutex.Lock()
 		if client.Conn == connection {
 			client.Conn = nil
 		}
 		client.Mutex.Unlock()
 
-		// ===================== HUECO 2: CLEANUP AL DESCONECTAR ==================
-		// QUÉ: al irse el cliente, borrarlo del mapa de la sesión y avisar al host.
-		// POR QUÉ: si no lo borras quedan "fantasmas": el conteo de joinSession
-		//          (len(Clients)-1 >= MaxViewers) se infla, el cupo nunca se
-		//          libera y emit intentaría escribir a conexiones muertas.
-		// PISTA: hazlo aquí (después de poner client.Conn = nil). Para avisar,
-		//        emit ya te sirve: emite la lista nueva a todos menos a este.
-		//
-		// Esqueleto (descomenta y completa):
-		//
-		//   session.Mutex.Lock()
-		//   delete(session.Clients, client.ID)
-		//   session.Mutex.Unlock()
-		//
-		//   session.emit(clientesMsg(session.visitors()), client.ID)
-		//
-		// (Así el host recibe la lista actualizada automáticamente.)
-		// ===========================================================================
+		session.Mutex.Lock()
+		delete(session.Clients,client.ID)
+		session.Mutex.Unlock()
+		
+		session.emit(clientesMsg(session.visitors()),client.ID)// estoy casi seguro de que el client.id no es necesario porque ya no existe en session
 	}()
 
+	const (
+    pongWait   = 30 * time.Second
+    pingPeriod = 10 * time.Second
+	)
+
+	connection.SetReadDeadline(time.Now().Add(pongWait))
+	connection.SetPongHandler(func(string) error {
+		return connection.SetReadDeadline(time.Now().Add(pongWait))
+	})
+	
+	go func() {
+    ticker := time.NewTicker(pingPeriod)
+    defer ticker.Stop()
+
+    for range ticker.C {
+        err := connection.WriteControl(
+            websocket.PingMessage,
+            nil,
+            time.Now().Add(10*time.Second),
+        )
+        if err != nil {
+            return
+        }
+    }
+}()
 	// ===================== HUECO 4a: DEADLINE DE LECTURA =======================
 	// QUÉ: poner plazo a la lectura y usar ping/pong para detectar clientes muertos.
 	// POR QUÉ: sin deadline, un TCP medio-abierto (se fue el wifi, cerró el

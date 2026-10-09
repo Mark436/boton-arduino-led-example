@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Interfaz LED</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="styles/style.css" />
   </head>
   <body>
     <main class="card">
@@ -134,7 +134,7 @@
     <div id="toast" class="toast" role="status" hidden></div>
 
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <!-- Orden importante: config.js define los globales (va en src/); el resto
+    <!-- Orden importante: config.js define los globales (va en frontend/); el resto
          de scripts vive en scripts/ y script.js es el que arranca todo. -->
     <script src="scripts/serial.js"></script>
     <script src="config.js"></script>
