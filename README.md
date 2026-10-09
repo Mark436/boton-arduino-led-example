@@ -1,6 +1,6 @@
 # Botón Arduino LED — Interfaz Web
 
-Controla un LED de Arduino desde el navegador mediante la **Web Serial API**, con soporte multiusuario en tiempo real: un **owner** controla el puerto COM y los **viewers** pueden ver e interactuar a través del backend.
+Controla un LED de Arduino desde el navegador mediante la **Web Serial API**, con soporte multiusuario en tiempo real: un **host** controla el puerto COM y los **visitors** pueden ver e interactuar a través del backend.
 
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
@@ -9,8 +9,8 @@ Controla un LED de Arduino desde el navegador mediante la **Web Serial API**, co
 
 ## ✨ Características
 
-- **Owner** (`/`): control completo — conectar/desconectar el Arduino (COM), encender/apagar el LED, ver el código QR de la sesión y administrar los usuarios conectados.
-- **Viewer** (`/viewer?sessionId=...`): llega desde el QR con su sesión identificada; no toca el puerto serial, y si el Arduino no está conectado muestra un aviso de que necesita el host para interactuar.
+- **Host** (`/`): control completo — conectar/desconectar el Arduino (COM), encender/apagar el LED, ver el código QR de la sesión y administrar los usuarios conectados.
+- **Visitor** (`/visitor?sessionId=...`): llega desde el QR con su sesión identificada; no toca el puerto serial, y si el Arduino no está conectado muestra un aviso de que necesita el host para interactuar.
 - **Estado centralizado**: `encendido` y `arduinoConectado` viven en un único estado listo para sincronizarse con el backend.
 - **Serial como librería**: `serial.js` es un módulo puro de comunicación (`connect`, `disconnect`, `write`, `setLed`), sin dependencias de la UI.
 - **Modales** de QR y de usuarios (IDs + eliminar) con diseño redondeado y notificaciones toast.
@@ -28,18 +28,25 @@ El servidor queda en `http://localhost:8080` y sirve el frontend directamente:
 
 | Ruta     | Descripción                        |
 | -------- | ---------------------------------- |
-| `/`      | Panel del owner                    |
-| `/viewer`| Panel del viewer (`?sessionId=...`)|
+| `/`       | Panel del host                      |
+| `/visitor`| Panel del visitor (`?sessionId=...`)|
 
 ### Frontend
 
-Solo necesitas Chrome o Edge (Web Serial API) con una placa Arduino conectada por USB. El backend se encarga de crear la sesión (`POST /session`) y el owner obtiene su `sessionId`/`clientId` automáticamente.
+Solo necesitas Chrome o Edge (Web Serial API) con una placa Arduino conectada por USB. El backend se encarga de crear la sesión (`POST /session`) y el host obtiene su `sessionId`/`clientId` automáticamente.
+
+El frontend vive en `src/`:
 
 ```
-index.html      → estructura
-style.css       → estilos (toast, modales, botones)
-serial.js       → librería de comunicación serial
-script.js       → interfaz, roles, estado y modales
+src/index.html          → estructura
+src/style.css           → estilos (toast, modales, botones)
+src/config.js           → rol, DEV_MODE, estado, sesión y refs DOM
+src/scripts/serial.js   → librería de comunicación serial
+src/scripts/users-api.js→ UsersApi (provisional)
+src/scripts/ui.js       → Toast y modales (QR, usuarios)
+src/scripts/session.js  → crear/unirse a sesión, URL del QR y render
+src/scripts/realtime.js → Realtime (WebSocket)
+src/scripts/script.js   → punto de entrada: eventos e init
 ```
 
 ### Arduino
@@ -69,7 +76,7 @@ Un ejemplo completo está en [`receptor.cpp`](receptor.cpp).
 | Método   | Ruta                            | Descripción                    |
 | -------- | ------------------------------- | ------------------------------ |
 | `POST`   | `/session`                      | Crear sesión (devuelve IDs)   |
-| `POST`   | `/session/{sessionId}`          | Unirse como viewer             |
+| `POST`   | `/session/{sessionId}`          | Unirse como visitor            |
 | `WS`     | `/ws/{sessionId}?client=...`    | Conexión en tiempo real        |
 
 > ⚠️ **En desarrollo**: faltan endpoints para listar/eliminar usuarios (`GET`/`DELETE .../clients`) y el broadcast de estado entre clientes.

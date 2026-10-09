@@ -11,7 +11,7 @@
     <main class="card">
       <button
         id="usersBtn"
-        class="icon-btn users-btn owner-panel"
+        class="icon-btn users-btn host-panel"
         type="button"
         aria-label="Administrar usuarios"
       >
@@ -34,7 +34,7 @@
 
       <button
         id="qrBtn"
-        class="icon-btn qr-btn owner-panel"
+        class="icon-btn qr-btn host-panel"
         type="button"
         aria-label="Abrir QR"
       >
@@ -62,7 +62,7 @@
         <span id="ledLabel">OFF</span>
       </button>
 
-      <button id="connectBtn" class="connect-btn owner-panel" type="button">
+      <button id="connectBtn" class="connect-btn host-panel" type="button">
         Conectar Arduino (COM)
       </button>
       <p id="status" class="status">Desconectado</p>
@@ -99,7 +99,7 @@
         <p id="usersCount" class="users-count"></p>
         <ul id="usersList" class="users-list"></ul>
         <div class="users-limit">
-          <span class="users-limit-label">Máximo de viewers</span>
+          <span class="users-limit-label">Máximo de invitados</span>
           <div class="stepper">
             <button
               id="maxUsersDec"
@@ -116,7 +116,7 @@
               min="1"
               step="1"
               inputmode="numeric"
-              aria-label="Máximo de viewers"
+              aria-label="Máximo de invitados"
             />
             <button
               id="maxUsersInc"
@@ -134,7 +134,14 @@
     <div id="toast" class="toast" role="status" hidden></div>
 
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <script src="serial.js"></script>
-    <script src="script.js"></script>
+    <!-- Orden importante: config.js define los globales (va en src/); el resto
+         de scripts vive en scripts/ y script.js es el que arranca todo. -->
+    <script src="scripts/serial.js"></script>
+    <script src="config.js"></script>
+    <script src="scripts/users-api.js"></script>
+    <script src="scripts/ui.js"></script>
+    <script src="scripts/session.js"></script>
+    <script src="scripts/realtime.js"></script>
+    <script src="scripts/script.js"></script>
   </body>
 </html>
