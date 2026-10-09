@@ -5,7 +5,7 @@ const ROLE = window.location.pathname === "/viewer" ? "viewer" : "owner";
 
 /* Simula el serial por consola (no requiere Arduino).
    Cambiar a true para desarrollar el resto de la interfaz. */
-const DEV_MODE = true;
+const DEV_MODE = false;
 
 /* Estado central de la sesión. El backend será la fuente de verdad;
    cuando haya sincronización se aplica con applySessionState(). */
@@ -149,17 +149,27 @@ class QrModal extends Modal {
 
     const url = viewerUrl();
 
+    // El QR (o la URL) es un enlace: al hacer clic lleva al viewer,
+    // además de poder escanearse.
+    const link = document.createElement("a");
+    link.className = "qr-link";
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.title = url;
+
     // QR generado en el navegador (qrcode-generator por CDN).
     if (typeof qrcode === "function") {
       try {
         const qr = qrcode(0, "M");
         qr.addData(url);
         qr.make();
-        this.contentEl.innerHTML = qr.createSvgTag({
+        link.innerHTML = qr.createSvgTag({
           cellSize: 4,
           margin: 2,
           scalable: true,
         });
+        this.contentEl.appendChild(link);
         return;
       } catch (_err) {
         // cae al texto si algo falla
@@ -170,8 +180,8 @@ class QrModal extends Modal {
     const code = document.createElement("code");
     code.className = "qr-url";
     code.textContent = url;
-    code.title = url;
-    this.contentEl.appendChild(code);
+    link.appendChild(code);
+    this.contentEl.appendChild(link);
   }
 }
 
