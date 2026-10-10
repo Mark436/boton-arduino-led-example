@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -19,16 +20,6 @@ type Client struct {
 	Mutex sync.RWMutex    `json:"-"`
 }
 
-// ===================== HUECO 4b: DEADLINE DE ESCRITURA =======================
-// QUÉ: poner un plazo de tiempo a la escritura antes de WriteMessage.
-// POR QUÉ: send tiene el mutex del cliente. Si el cliente es lento, WriteMessage
-// se queda colgado, el mutex no se suelta y se bloquea el broadcast a TODOS.
-// El deadline corta la escritura y libera el mutex.
-// PISTA: define una constante, p.ej. writeWait = 10 * time.Second, y añade
-// justo antes de WriteMessage (recuerda importar "time"):
-// CODE: client.Conn.SetWriteDeadline(time.Now().Add(writeWait))
-// Si el deadline vence, WriteMessage devuelve error y ya lo logueas abajo.
-// =============================================================================
 func (client *Client) send(data []byte) {
 	client.Mutex.Lock()
 	defer client.Mutex.Unlock()
@@ -36,6 +27,10 @@ func (client *Client) send(data []byte) {
 	if client.Conn == nil {
 		return
 	}
+
+	const writeWait = 10 * time.Second
+
+	client.Conn.SetWriteDeadline(time.Now().Add(writeWait))
 	if err := client.Conn.WriteMessage(websocket.TextMessage, data); err != nil {
 		log.Printf("Error enviando mensaje a %s: %v", client.ID, err)
 	}

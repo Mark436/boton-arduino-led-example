@@ -104,7 +104,6 @@ func (server *Server) joinSession(writer http.ResponseWriter, request *http.Requ
 	ledEncendido := session.Encendido
 	arduinoConectado := session.ArduinoConnectado
 	maxViewers := session.MaxViewers
-
 	session.Mutex.Unlock()
 
 	writer.Header().Set("Content-Type", "application/json")
@@ -114,5 +113,69 @@ func (server *Server) joinSession(writer http.ResponseWriter, request *http.Requ
 		"ledEncendido":     ledEncendido,
 		"arduinoConectado": arduinoConectado,
 		"maxViewers":       maxViewers,
+	})
+}
+
+// resetSession (POST /session/{sessionID}/reset?client={clientId}) reinicia la
+// sesión del host: expulsa a todos los visitors de la sala vieja, la borra y
+// crea una nueva conservando el estado (LED, Arduino y maxViewers). Devuelve
+// los IDs nuevos para que el host reconecte. Solo el host puede llamarlo.
+func (server *Server) resetSession(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(writer, "Metodo no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+	sessionID := request.PathValue("sessionID")
+	clientID := request.URL.Query().Get("client")
+
+	server.Mutex.RLock()
+	session, ok := server.Sessions[sessionID]
+	server.Mutex.RUnlock()
+
+	if !ok {
+		http.Error(writer, "Sesion no encontrada", http.StatusNotFound)
+		return
+	}
+
+	session.Mutex.RLock()
+	host, ok := session.Clients[clientID]
+	isHost := ok && host != nil && host.Role == Host
+	encendido := session.Encendido
+	arduino := session.ArduinoConnectado
+	maxViewers := session.MaxViewers
+	session.Mutex.RUnlock()
+
+	if !isHost {
+		http.Error(writer, "Solo el host puede reiniciar la sesion", http.StatusForbidden)
+		return
+	}
+
+	// Saca la sala vieja del registro y expulsa a sus visitors.
+	server.Mutex.Lock()
+	delete(server.Sessions, sessionID)
+	server.Mutex.Unlock()
+	session.destroy("La sesión fue cerrada por el host")
+
+	// Crea la nueva sala conservando el estado anterior.
+	newHost := &Client{
+		ID:   uuid.New().String(),
+		Role: Host,
+	}
+	newSession := &Session{
+		ID:                uuid.New().String(),
+		Encendido:         encendido,
+		ArduinoConnectado: arduino,
+		MaxViewers:        maxViewers,
+		Clients:           map[string]*Client{newHost.ID: newHost},
+	}
+
+	server.Mutex.Lock()
+	server.Sessions[newSession.ID] = newSession
+	server.Mutex.Unlock()
+
+	writer.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(writer).Encode(map[string]string{
+		"sessionId": newSession.ID,
+		"clientId":  newHost.ID,
 	})
 }

@@ -50,33 +50,54 @@ func (server *Server) websocketHandler(writer http.ResponseWriter, request *http
 	}
 	defer connection.Close()
 
-	//crear conexión
+	// Crear conexión: enlaza el WebSocket a este cliente.
 	client.Mutex.Lock()
 	client.Conn = connection
 	client.Mutex.Unlock()
-	
-	session.Mutex.RLock()
-	led:=session.Encendido
-	arduino:=session.ArduinoConnectado
-	maxViewers:=session.MaxViewers
-	session.Mutex.RUnlock()
-	
-	client.send(mustMarshal(Mensaje{Tipo: "cambiarLED",Dato:mustMarshal(DatoLED{Encendido: led})}))
-	client.send(mustMarshal(Mensaje{Tipo: "cambiarArduino",Dato:mustMarshal(DatoArduino{ArduinoConectado: arduino})}))
-	client.send(mustMarshal(Mensaje{Tipo: "cambiarMaxViewers",Dato:mustMarshal(DatoMaxViewers{MaxViewers: maxViewers})}))
 
-	defer func() {//finally para el websocket
+	// El host marca la sala como "host conectado" y avisa a los visitors.
+	if client.Role == Host {
+		session.Mutex.Lock()
+		session.HostDisconnectedAt = time.Time{}
+		session.Mutex.Unlock()
+		session.emit(hostConectadoMsg(true), client.ID)
+	}
+
+	session.Mutex.RLock()
+	led := session.Encendido
+	arduino := session.ArduinoConnectado
+	maxViewers := session.MaxViewers
+	hostConectado := session.HostDisconnectedAt.IsZero()
+	session.Mutex.RUnlock()
+
+	client.send(mustMarshal(Mensaje{Tipo: "cambiarLED", Dato: mustMarshal(DatoLED{Encendido: led})}))
+	client.send(mustMarshal(Mensaje{Tipo: "cambiarArduino", Dato: mustMarshal(DatoArduino{ArduinoConectado: arduino})}))
+	client.send(mustMarshal(Mensaje{Tipo: "cambiarMaxViewers", Dato: mustMarshal(DatoMaxViewers{MaxViewers: maxViewers})}))
+	client.send(mustMarshal(hostConectadoMsg(hostConectado)))
+
+	defer func() { // finally para el websocket
 		client.Mutex.Lock()
 		if client.Conn == connection {
 			client.Conn = nil
 		}
+		isHost := client.Role == Host
 		client.Mutex.Unlock()
 
+		if isHost {
+			// El host NO se borra: así puede reconectar con el mismo clientId.
+			// Se marca cuándo cayó para que el reaper borre la sala si expira.
+			session.Mutex.Lock()
+			session.HostDisconnectedAt = time.Now()
+			session.Mutex.Unlock()
+			session.emit(hostConectadoMsg(false), client.ID)
+			return
+		}
+
 		session.Mutex.Lock()
-		delete(session.Clients,client.ID)
+		delete(session.Clients, client.ID)
 		session.Mutex.Unlock()
-		
-		session.emit(clientesMsg(session.visitors()),client.ID)// estoy casi seguro de que el client.id no es necesario porque ya no existe en session
+
+		session.emit(clientesMsg(session.visitors()), client.ID)
 	}()
 
 	const (
@@ -104,24 +125,6 @@ func (server *Server) websocketHandler(writer http.ResponseWriter, request *http
         }
     }
 }()
-	// ===================== HUECO 4a: DEADLINE DE LECTURA =======================
-	// QUÉ: poner plazo a la lectura y usar ping/pong para detectar clientes muertos.
-	// POR QUÉ: sin deadline, un TCP medio-abierto (se fue el wifi, cerró el
-	//          portátil) deja este bucle esperando PARA SIEMPRE: goroutine viva y
-	//          cupo retenido. El pong renueva la fecha mientras el cliente viva.
-	// PISTA: define pongWait/pingPeriod en el paquete y, antes del for (o al
-	//        inicio), instala el pong handler. El ticker de ping va en su propio
-	//        goroutine para no bloquear la lectura.
-	//
-	// Esqueleto (descomenta y completa; requiere importar "time"):
-	//
-	//   const pongWait = 60 * time.Second
-	//   connection.SetReadDeadline(time.Now().Add(pongWait))
-	//   connection.SetPongHandler(func(string) error {
-	//       return connection.SetReadDeadline(time.Now().Add(pongWait))
-	//   })
-	//   // go func() { ticker de pingPeriod -> connection.WriteControl(PingMessage, ...) }()
-	// ===========================================================================
 
 	for {
 		_, message, err := connection.ReadMessage()
@@ -130,30 +133,15 @@ func (server *Server) websocketHandler(writer http.ResponseWriter, request *http
 			break
 		}
 
-		// ===================== HUECO 3: NORMALIZAR EL MENSAJE ==================
-		// QUÉ: validar/limpiar el JSON entrante ANTES del switch.
-		// POR QUÉ: centralizas aquí las comprobaciones (tipo vacío, dato nulo…)
-		//          y el switch queda limpio, sin repetir validaciones en cada case.
-		// PISTA: tras el Unmarshal, si falta tipo o dato, haz `continue`.
-		//
-		// Esqueleto (descomenta y completa):
-		//
-		//   if formattedMessage.Tipo == "" || len(formattedMessage.Dato) == 0 {
-		//       log.Println("Mensaje sin tipo o sin dato")
-		//       continue
-		//   }
-		// =========================================================================
 		var formattedMessage Mensaje
 		if err := json.Unmarshal(message, &formattedMessage); err != nil {
 			log.Println("Mensaje invalido")
+		}
+		if formattedMessage.Tipo =="" || len(formattedMessage.Dato) == 0 {
+			log.Println("Mensaje sin tipo o sin dato")
 			continue
 		}
 
-		log.Printf("Mensaje recibido de %s: %+v", client.ID, formattedMessage)
-
-		// Patrón de cada case: (1) comprobar rol si aplica, (2) decodificar Dato
-		// al tipo concreto, (3) actualizar la Session bajo Lock, (4) emit a todos
-		// menos al emisor. Los que solo consultan (pedirClientes) usan send directo.
 		switch formattedMessage.Tipo {
 		case "cambiarLED":
 			// Cualquier rol puede pedir el cambio del LED.
@@ -229,7 +217,7 @@ func (server *Server) websocketHandler(writer http.ResponseWriter, request *http
 			session.Mutex.Unlock()
 
 			if ok {
-				target.send(mustMarshal(expulsadoMsg()))
+				target.send(mustMarshal(expulsadoMsg("Expulsado por el host")))
 				target.Mutex.Lock()
 				if target.Conn != nil {
 					target.Conn.Close()

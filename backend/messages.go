@@ -35,6 +35,12 @@ type DatoExpulsar struct {
 	ClientID string `json:"clientId"`
 }
 
+// DatoHostConectado acompaña a "cambiarHostConectado": si el host tiene su
+// WebSocket abierto (los visitors lo usan para mostrar "Host desconectado").
+type DatoHostConectado struct {
+	HostConectado bool `json:"hostConectado"`
+}
+
 // DatoCliente es cada elemento del array del mensaje "clientes".
 // Ojo: la lista NO incluye al host (ver visitors()).
 type DatoCliente struct {
@@ -66,7 +72,13 @@ func clientesMsg(visitors []DatoCliente) Mensaje {
 	return Mensaje{Tipo: "clientes", Dato: mustMarshal(visitors)}
 }
 
-// expulsadoMsg arma el mensaje "expulsado" (sin dato útil).
-func expulsadoMsg() Mensaje {
-	return Mensaje{Tipo: "expulsado", Dato: json.RawMessage(`{}`)}
+// expulsadoMsg arma el mensaje "expulsado" con el motivo por el que se echó al
+// cliente (expulsión individual del host o cierre/reset de la sesión).
+func expulsadoMsg(motivo string) Mensaje {
+	return Mensaje{Tipo: "expulsado", Dato: mustMarshal(map[string]string{"motivo": motivo})}
+}
+
+// hostConectadoMsg arma el mensaje "cambiarHostConectado".
+func hostConectadoMsg(hostConectado bool) Mensaje {
+	return Mensaje{Tipo: "cambiarHostConectado", Dato: mustMarshal(DatoHostConectado{HostConectado: hostConectado})}
 }
