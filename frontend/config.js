@@ -5,8 +5,7 @@
 /* (rol, DEV_MODE, estado y referencias DOM) que usan los otros       */
 /* módulos. La sesión vive en la clase Session (scripts/session.js).  */
 /* Orden de carga en index.html:                                      */
-/*   serial.js, config.js, users-api.js, ui.js, session.js,          */
-/*   realtime.js, script.js                                           */
+/*   serial.js, config.js, session.js, ui.js, realtime.js, script.js  */
 /* ------------------------------------------------------------------ */
 
 const ROLE = window.location.pathname === "/visitor" ? "visitor" : "host";

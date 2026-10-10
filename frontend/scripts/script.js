@@ -5,18 +5,9 @@
 /* la sesión. La lógica está repartida por responsabilidad:            */
 /*   config.js     -> rol, DEV_MODE, estado, refs DOM                  */
 /*   serial.js     -> SerialConnection (Web Serial)                    */
-/*   users-api.js  -> UsersApi (provisional; PENDIENTE 5)              */
 /*   ui.js         -> Toast, QrModal, UsersModal, ConfirmModal         */
 /*   session.js    -> Session (crear/unirse, reset, URL del QR)        */
 /*   realtime.js   -> Realtime (WebSocket con cierre intencional)      */
-/*                                                                     */
-/* PENDIENTES DE INTEGRACIÓN (el backend ya está listo):               */
-/*   1) renombrar owner->host / viewer->visitor     ...... HECHO        */
-/*   2) ruta /viewer -> /visitor                     ...... HECHO        */
-/*   3) join del visitor + guardar clientId (rama visitor)             */
-/*   4) WebSocket: enviar cambios (cambiarLED/Arduino/MaxViewers)      */
-/*   5) UsersApi (REST) -> mensajes WS (incl. UsersModal.renderList)   */
-/*   6) al recibir "expulsado": toast + limpiar sesión  ... HECHO (11) */
 /* ------------------------------------------------------------------ */
 
 class App {
@@ -43,10 +34,12 @@ class App {
   /* Conexión serial (solo el host la usa)                          */
   /* -------------------------------------------------------------- */
   bindSerial() {
-    // PENDIENTE (4): cuando cambie `connected` el host debe avisar a los
-    // visitors por WS:
-    //   this.realtime.send({ tipo: "cambiarArduino", dato: { arduinoConectado: connected } })
     this.connection.onStatusChange = (message, connected) => {
+      // El host avisa del cambio de conexión física a los visitors:
+      this.realtime?.send({
+        tipo: "cambiarArduino",
+        dato: { arduinoConectado: connected },
+      });
       state.arduinoConectado = connected;
       statusEl.textContent = message;
       connectBtn.textContent = connected
@@ -80,9 +73,13 @@ class App {
         return;
       }
 
-      // PENDIENTE (4): el visitor pide el cambio por WS:
-      //   this.realtime.send({ tipo: "cambiarLED", dato: { ledEncendido: !state.encendido } })
-      // El estado real volverá con {tipo:"cambiarLED"} en handleServerMessage.
+      // El visitor pide el cambio por WS (el estado real vuelve en "cambiarLED"):
+      this.realtime.send({
+        tipo: "cambiarLED",
+        dato: { ledEncendido: !state.encendido },
+      });
+      this.applyState({ encendido: !state.encendido });
+
       return;
     }
 
@@ -97,8 +94,10 @@ class App {
     state.encendido = !state.encendido;
     this.renderLed();
 
-    // PENDIENTE (4): avisar a los visitors del nuevo estado del LED:
-    //   this.realtime.send({ tipo: "cambiarLED", dato: { ledEncendido: state.encendido } })
+    this.realtime.send({
+      tipo: "cambiarLED",
+      dato: { ledEncendido: state.encendido },
+    });
   }
 
   /* -------------------------------------------------------------- */
@@ -154,6 +153,7 @@ class App {
       document.getElementById("usersModal"),
       document.getElementById("usersBtn"),
       document.getElementById("usersClose"),
+      (mensaje) => this.realtime?.send(mensaje),
     );
   }
 
@@ -249,12 +249,12 @@ class App {
   }
 
   /* -------------------------------------------------------------- */
-  /* Mensajes del servidor (PENDIENTE 3, 4 y 5)                     */
+  /* Mensajes del servidor                                          */
   /* -------------------------------------------------------------- */
   handleServerMessage(mensaje) {
     const mensajes = {
-      cambiarLED: ({ encendido }) => {
-        this.applyState({ encendido });
+      cambiarLED: ({ ledEncendido }) => {
+        this.applyState({ encendido: ledEncendido });
       },
       cambiarArduino: ({ arduinoConectado }) => {
         this.applyState({ arduinoConectado });
@@ -265,8 +265,8 @@ class App {
       cambiarHostConectado: ({ hostConectado }) => {
         this.applyState({ hostConectado });
       },
-      clientes: ({ dato }) => {
-        this.usersModal.renderList(dato);
+      clientes: (lista) => {
+        this.usersModal.renderLista(lista);
       },
       // CORREGIDO: el backend ahora manda el motivo en "expulsado". Antes se
       // usaba window.close() (que no cierra pestañas normales) y el visitor
@@ -291,4 +291,5 @@ class App {
   }
 }
 
-new App().init();
+const app = new App();
+app.init();

@@ -161,8 +161,9 @@ class ConfirmModal {
 /* Modal de usuarios: lista IDs y permite eliminar                     */
 /* ------------------------------------------------------------------ */
 class UsersModal extends Modal {
-  constructor(overlay, openBtn, closeBtn) {
+  constructor(overlay, openBtn, closeBtn, enviar) {
     super(overlay);
+    this.enviar = enviar;
     this.listEl = document.getElementById("usersList");
     this.countEl = document.getElementById("usersCount");
     this.maxValueEl = document.getElementById("maxUsersValue");
@@ -178,10 +179,10 @@ class UsersModal extends Modal {
     );
   }
 
-  async open() {
+  open() {
     this.renderMax();
     super.open();
-    await this.refresh();
+    this.refresh();
   }
 
   renderMax() {
@@ -193,7 +194,7 @@ class UsersModal extends Modal {
     return this.setMax(state.maxViewers + delta);
   }
 
-  async setMax(value) {
+  setMax(value) {
     const next = Math.max(1, Math.floor(Number(value) || 1));
 
     if (next === state.maxViewers) {
@@ -201,35 +202,23 @@ class UsersModal extends Modal {
       return;
     }
 
-    // Actualización optimista: el backend será la fuente de verdad cuando
-    // exponga el endpoint para cambiar el máximo.
+    // Actualización optimista: el backend es la fuente de verdad y confirmará
+    // con un mensaje "cambiarMaxViewers".
     state.maxViewers = next;
     this.renderMax();
-
-    try {
-      await UsersApi.setMaxViewers(next);
-      toast.show(`Máximo de invitados: ${next}`);
-    } catch (err) {
-      toast.show(err.message);
-    }
+    this.enviar({ tipo: "cambiarMaxViewers", dato: { maxViewers: next } });
+    toast.show(`Máximo de invitados: ${next}`);
   }
-
-  async refresh() {
+  // Pinta la lista cuando el servidor responde a "pedirClientes".
+  renderLista(lista) {
     this.listEl.replaceChildren();
-    this.countEl.textContent = "";
 
-    let users;
-    try {
-      users = await UsersApi.list();
-    } catch (err) {
-      toast.show(err.message);
-      this.countEl.textContent = "Sin datos de usuarios";
-      return;
-    }
+    const usuarios = lista.filter(
+      ({ role }) => role.toUpperCase() === "VISITOR",
+    );
+    this.countEl.textContent = `${usuarios.length} usuario(s) en la sesión`;
 
-    this.countEl.textContent = `${users.length} usuario(s) en la sesión`;
-
-    if (users.length === 0) {
+    if (usuarios.length === 0) {
       const empty = document.createElement("li");
       empty.className = "users-empty";
       empty.textContent = "Nadie más en la sesión todavía.";
@@ -237,9 +226,16 @@ class UsersModal extends Modal {
       return;
     }
 
-    for (const user of users) {
-      this.listEl.appendChild(this._buildRow(user));
+    for (const usuario of usuarios) {
+      this.listEl.appendChild(this._buildRow(usuario));
     }
+  }
+
+  // Pide la lista al servidor; el pintado llega por "clientes" -> renderLista.
+  refresh() {
+    this.listEl.replaceChildren();
+    this.countEl.textContent = "Cargando...";
+    this.enviar({ tipo: "pedirClientes", dato: {} });
   }
 
   _buildRow(user) {
@@ -261,15 +257,10 @@ class UsersModal extends Modal {
     removeBtn.textContent = "×";
     removeBtn.setAttribute("aria-label", "Eliminar usuario");
     removeBtn.disabled = user.clientId === session.clientId;
-    removeBtn.addEventListener("click", async () => {
+    removeBtn.addEventListener("click", () => {
       removeBtn.disabled = true;
-      try {
-        await UsersApi.remove(user.clientId);
-        await this.refresh();
-      } catch (err) {
-        removeBtn.disabled = false;
-        toast.show(err.message);
-      }
+      this.enviar({ tipo: "expulsar", dato: { clientId: user.clientId } });
+      this.refresh();
     });
 
     row.append(id, role, removeBtn);
