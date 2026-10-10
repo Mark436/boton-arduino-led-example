@@ -24,7 +24,8 @@ go run .
 ```
 
 El servidor queda en `http://localhost:8080` y sirve el frontend directamente. El
-módulo Go vive en la **raíz del repo** y sirve el sitio desde `frontend/`:
+`main.go` está en la raíz (arranque) y la lógica vive en `internal/app/`, sirviendo
+el sitio desde `frontend/`:
 
 | Ruta     | Descripción                        |
 | -------- | ---------------------------------- |
@@ -104,8 +105,8 @@ El frontend implementa y envía todos los mensajes del protocolo:
 
 | Marca | Qué                                                                 | Dónde                       | Debe ser |
 | ----- | ------------------------------------------------------------------- | --------------------------- | -------- |
-| 🚧    | Al unirse un visitor **no** se reenvía `clientes` al host           | `server.go:73`              | Emitir `clientesMsg(...)` al host tras el alta |
-| 🚧    | El `Upgrader` no define `CheckOrigin` (solo mismo origen)           | `websocket.go:14`           | Definir `CheckOrigin` si se sirve el front desde otro puerto |
+| 🚧    | Al unirse un visitor **no** se reenvía `clientes` al host           | `internal/app/server.go:93` | Emitir `clientesMsg(...)` al host tras el alta |
+| 🚧    | El `Upgrader` no define `CheckOrigin` (solo mismo origen)           | `internal/app/websocket.go:14` | Definir `CheckOrigin` si se sirve el front desde otro puerto |
 
 ## 🐳 Docker
 
@@ -131,10 +132,12 @@ docker compose logs -f
 Estructura del repo:
 
 ```
-go.mod / go.sum / *.go    → backend (módulo Go en la raíz)
+main.go                   → arranque (rutas y ListenAndServe)
+internal/app/             → backend (Server, Session, WebSocket, protocolo, frontend)
 frontend/                 → sitio estático servido por el backend
 docs/                     → ENDPOINTS.md, PROTOCOLO.md
 docs/examples/            → receptor.cpp (firmware) y docs/caddy/ (ejemplos de Caddy)
+go.mod / go.sum
 Dockerfile / docker-compose.yml / .dockerignore
 ```
 

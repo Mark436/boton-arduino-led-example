@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"encoding/json"
@@ -13,6 +13,25 @@ import (
 type Server struct {
 	Sessions map[string]*Session
 	Mutex    sync.RWMutex
+}
+
+// NewServer crea el registro de sesiones vacío.
+func NewServer() *Server {
+	return &Server{
+		Sessions: make(map[string]*Session),
+	}
+}
+
+// RegisterRoutes monta en el mux el frontend y las rutas del backend.
+func (server *Server) RegisterRoutes(mux *http.ServeMux) {
+	// Frontend: HTML, CSS y JS estáticos (ver frontend.go)
+	registerFrontend(mux)
+
+	// Backend
+	mux.HandleFunc("/session", server.createSession)
+	mux.HandleFunc("/session/{sessionID}", server.joinSession)
+	mux.HandleFunc("/session/{sessionID}/reset", server.resetSession)
+	mux.HandleFunc("/ws/{sessionID}", server.websocketHandler)
 }
 
 // createSession (POST /session) crea la sala y a su HOST.

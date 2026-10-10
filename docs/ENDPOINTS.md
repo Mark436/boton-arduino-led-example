@@ -12,9 +12,9 @@ frontend estático. La comunicación en tiempo real usa WebSocket.
 | `GET`  | `/` y `/visitor`              | `indexHandler`      | Sirve el frontend (`index.html`)     |
 | `GET`  | `/*`                          | `http.FileServer`   | Sirve `frontend/` como estáticos     |
 
-El registro global de salas vive en `Server.Sessions` (`server.go`), protegido por
-`Server.Mutex`. El estado de cada sala vive en `Session` (`session.go`), protegido
-por `Session.Mutex`.
+El registro global de salas vive en `Server.Sessions` (`internal/app/server.go`),
+protegido por `Server.Mutex`. El estado de cada sala vive en `Session`
+(`internal/app/session.go`), protegido por `Session.Mutex`.
 
 ---
 
@@ -226,7 +226,7 @@ Reglas:
      marca `HostDisconnectedAt` y se emite `cambiarHostConectado {hostConectado:false}`.
 - **Reconexión del host:** limpia `HostDisconnectedAt` y emite
   `cambiarHostConectado {hostConectado:true}`.
-- **Reaper** (`main.go`): cada `reaperInterval` (30s) borra las salas cuyo host
+- **Reaper** (`internal/app/reaper.go`): cada `reaperInterval` (30s) borra las salas cuyo host
   lleve más de `sessionTTL` (90s) desconectado, avisando a sus visitors con
   `expulsado { "motivo": "La sesión expiró" }`.
 
@@ -237,10 +237,10 @@ Reglas:
 Marcas: **🚧 PENDIENTE** (por hacer) · **ℹ️ COMPORTAMIENTO** (así es a propósito).
 
 - ℹ️ `createSession` exige un body JSON válido: un body vacío devuelve `400`.
-- 🚧 El `Upgrader` (`websocket.go:14`) no define `CheckOrigin`, por lo que aplica el
+- 🚧 El `Upgrader` (`internal/app/websocket.go:14`) no define `CheckOrigin`, por lo que aplica el
   default de gorilla/websocket: solo acepta el **mismo origen**. Servir el
   frontend desde otro puerto (p. ej. Live Server) hará fallar el WS.
-- 🚧 **Al unirse un visitor no se reenvía `clientes` al host** (`server.go:73`,
+- 🚧 **Al unirse un visitor no se reenvía `clientes` al host** (`internal/app/server.go:93`,
   `joinSession`). El alta ocurre en el `joinSession` HTTP, que no emite. El host
   solo actualiza su lista al abrir el modal (`pedirClientes`) o cuando algún
   cliente se desconecta. *Arreglo:* emitir `clientesMsg(...)` al host tras el alta.
