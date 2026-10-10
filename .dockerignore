@@ -1,0 +1,38 @@
+# .dockerignore - archivos que NO se envian al "build context".
+# Acelera el build y evita copiar cosas innecesarias a la imagen.
+
+# Control de versiones
+.git
+.gitignore
+
+# Documentacion y licencia (no se usan dentro de la imagen)
+*.md
+LICENSE
+
+# Documentacion/ejemplos (Caddy, protocolo, endpoints)
+docs
+
+# Firmware / archivos que no forman parte de la web servida
+receptor.cpp
+
+# Compose y config de Docker (no se copian a la imagen)
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Binarios y artefactos de build locales (nombre del modulo: LED-websocket)
+*.exe
+*.dll
+*.so
+*.dylib
+/app
+/main
+/server
+/LED-websocket
+/LED-websocket.exe
+
+# Configuracion de editores y del sistema
+.vscode
+.idea
+.DS_Store
+Thumbs.db

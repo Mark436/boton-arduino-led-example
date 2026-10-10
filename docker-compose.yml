@@ -1,0 +1,46 @@
+# =============================================================================
+# docker-compose.yml - App "LED / Arduino"
+#
+# Levanta la app en un contenedor que habla HTTP plano.
+# El HTTPS/TLS NO es responsabilidad de este contenedor: lo termina Caddy
+# (u otro reverse proxy) por delante. Aqui solo se expone HTTP en el 8080.
+# Ejemplos de Caddy (Caddyfile + compose) en docs/caddy/.
+# =============================================================================
+
+services:
+  # Nombre del servicio = DNS interno dentro de la red Docker.
+  # Caddy haria proxy_pass a http://led-arduino:8080.
+  led-arduino:
+    # Nombre fijo del contenedor en el host (util para referenciarlo facil).
+    container_name: led-arduino
+
+    # Construye la imagen usando el Dockerfile de la raiz del repo.
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Tag de la imagen resultante (util si luego quieres "docker run").
+    image: led-arduino:latest
+
+    # Publica el 8080 del contenedor en el 8080 del host.
+    # NOTA: si Caddy corre en la MISMA red Docker, NO necesitas publicar el
+    # puerto: Caddy llega por el nombre del servicio (http://led-arduino:8080).
+    # En ese caso podes cambiarlo por "127.0.0.1:8080:8080" o borrar el bloque.
+    ports:
+      - "8080:8080"
+
+    # Red compartida con Caddy. Nombre PLACEHOLDER: renombralo a gusto.
+    networks:
+      - reverse_proxy_net
+
+    # Reinicia el contenedor ante caidas (salvo que lo detengas a mano).
+    restart: unless-stopped
+
+networks:
+  # Red PLACEHOLDER compartida con el reverse proxy.
+  # Renombrala y/o marcala como "external: true" si ya la crea tu Caddy.
+  reverse_proxy_net:
+    name: reverse_proxy_net
+    driver: bridge
+    # Descomenta esto para reutilizar una red creada por otro compose/Caddy:
+    # external: true
