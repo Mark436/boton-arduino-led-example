@@ -1,0 +1,49 @@
+# =============================================================================
+# docs/caddy/docker-compose.yml  (EJEMPLO)
+#
+# Compose de REFERENCIA solo para Caddy. Su objetivo es mostrar la estructura de
+# red: Caddy y la app comparten la red Docker "reverse_proxy_net", así Caddy
+# alcanza la app por su nombre de servicio (led-arduino:8080) y termina el TLS.
+#
+# Orden de arranque:
+#   1) docker compose up -d            (en la raíz: crea la red y la app)
+#   2) docker compose up -d            (en docs/caddy: levanta Caddy)
+# =============================================================================
+
+services:
+  # Reverse proxy con HTTPS automático.
+  caddy:
+    # Imagen oficial de Caddy v2.
+    image: caddy:2
+    # Nombre fijo del contenedor.
+    container_name: caddy
+    # Reinicia ante caídas (salvo parada manual).
+    restart: unless-stopped
+
+    # Puertos públicos del reverse proxy (aquí SÍ vive el HTTPS).
+    ports:
+      - "80:80" # HTTP (Caddy redirige a HTTPS)
+      - "443:443" # HTTPS / TLS
+      - "443:443/udp" # HTTP/3 sobre QUIC (opcional)
+
+    # Monta el Caddyfile de este directorio y persiste datos de TLS.
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificados emitidos
+      - caddy_config:/config # configuración autogenerada por Caddy
+
+    # Se conecta a la MISMA red que la app.
+    networks:
+      - reverse_proxy_net
+
+# Volúmenes nombrados para que los certificados sobrevivan a recreaciones.
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  # La red ya la crea el compose de la APP (raíz). Aquí se reutiliza como
+  # "external": no se vuelve a crear, solo se engancha.
+  reverse_proxy_net:
+    external: true
+    name: reverse_proxy_net

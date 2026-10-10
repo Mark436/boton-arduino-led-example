@@ -20,11 +20,11 @@ Controla un LED de Arduino desde el navegador mediante la **Web Serial API**, co
 ### Backend (Go)
 
 ```bash
-cd backend
 go run .
 ```
 
-El servidor queda en `http://localhost:8080` y sirve el frontend directamente:
+El servidor queda en `http://localhost:8080` y sirve el frontend directamente. El
+módulo Go vive en la **raíz del repo** y sirve el sitio desde `frontend/`:
 
 | Ruta     | Descripción                        |
 | -------- | ---------------------------------- |
@@ -39,15 +39,14 @@ El frontend vive en `frontend/`:
 
 ```
 frontend/index.html           → estructura
-frontend/config.js            → rol, DEV_MODE, estado, sesión y refs DOM
+frontend/config.js            → rol, DEV_MODE, estado y refs DOM
 frontend/styles/style.css     → estilos (toast, modales, botones)
 frontend/favicon.svg          → icono
 frontend/scripts/serial.js    → librería de comunicación serial
-frontend/scripts/users-api.js → UsersApi (provisional)
-frontend/scripts/ui.js        → Toast y modales (QR, usuarios)
-frontend/scripts/session.js   → crear/unirse a sesión, URL del QR y render
-frontend/scripts/realtime.js  → Realtime (WebSocket)
-frontend/scripts/script.js    → punto de entrada: eventos e init
+frontend/scripts/session.js   → Session: crear/unirse, reset, URL del QR
+frontend/scripts/realtime.js  → Realtime (WebSocket, cierre intencional)
+frontend/scripts/ui.js        → Toast, QrModal, UsersModal, ConfirmModal
+frontend/scripts/script.js    → App: eventos, render, sesión y WS (módulo ES)
 ```
 
 ### Arduino
@@ -70,25 +69,80 @@ void loop() {
 }
 ```
 
-Un ejemplo completo está en [`receptor.cpp`](receptor.cpp).
+Un ejemplo completo está en [`docs/examples/receptor.cpp`](docs/examples/receptor.cpp).
 
 ## 📡 API del backend
 
-| Método   | Ruta                            | Descripción                    |
-| -------- | ------------------------------- | ------------------------------ |
-| `POST`   | `/session`                      | Crear sesión (devuelve IDs)   |
-| `POST`   | `/session/{sessionId}`          | Unirse como visitor            |
-| `WS`     | `/ws/{sessionId}?client=...`    | Conexión en tiempo real        |
+| Método   | Ruta                            | Descripción                      |
+| -------- | ------------------------------- | -------------------------------- |
+| `POST`   | `/session`                      | Crear sesión (devuelve IDs)     |
+| `POST`   | `/session/{sessionId}`          | Unirse como visitor              |
+| `POST`   | `/session/{sessionId}/reset`    | Reiniciar sesión (solo el host)  |
+| `WS`     | `/ws/{sessionId}?client=...`    | Conexión en tiempo real          |
 
-> ⚠️ **En desarrollo**: faltan endpoints para listar/eliminar usuarios (`GET`/`DELETE .../clients`) y el broadcast de estado entre clientes.
+> ✅ El **backend está completo** y el frontend ya está **cableado** a todos sus
+> mensajes. El detalle del protocolo vive en [`docs/PROTOCOLO.md`](docs/PROTOCOLO.md)
+> y [`docs/ENDPOINTS.md`](docs/ENDPOINTS.md).
 
-## 🗺️ Roadmap
+## ✅ Integración frontend/backend
 
-- [ ] Sincronización de `encendido` / `arduinoConectado` vía WebSocket
-- [ ] Endpoints de gestión de usuarios para el modal
-- [ ] Generación del código QR real (SVG)
-- [ ] Limpieza automática de sesiones inactivas
+El frontend implementa y envía todos los mensajes del protocolo:
 
-## 📄 Licencia
+- **Rama visitor**: `joinVisitor` + abrir WS → `frontend/scripts/script.js:175`.
+- **Envíos del host**: `cambiarArduino` (`script.js:39`) y `cambiarLED` tras el
+  toggle (`script.js:96`).
+- **Envío del visitor**: `cambiarLED` (`script.js:77`).
+- **Modal de usuarios por WS**: `cambiarMaxViewers` (`ui.js:209`),
+  `pedirClientes` (`ui.js:238`) y `expulsar` (`ui.js:262`). El modal recibe un
+  emisor (`this.enviar`) inyectado desde `App`, así no depende de un global.
+- **Recepción** (`handleServerMessage`): `cambiarLED` (`script.js:255`),
+  `clientes` (`script.js:267`), más `cambiarArduino`, `cambiarMaxViewers`,
+  `cambiarHostConectado` y `expulsado { motivo }`.
+- `UsersApi` (REST) eliminado: archivo borrado y `<script>` quitado de `index.html`.
 
-MIT
+## 🚧 Pendientes (backend, opcionales)
+
+| Marca | Qué                                                                 | Dónde                       | Debe ser |
+| ----- | ------------------------------------------------------------------- | --------------------------- | -------- |
+| 🚧    | Al unirse un visitor **no** se reenvía `clientes` al host           | `server.go:73`              | Emitir `clientesMsg(...)` al host tras el alta |
+| 🚧    | El `Upgrader` no define `CheckOrigin` (solo mismo origen)           | `websocket.go:14`           | Definir `CheckOrigin` si se sirve el front desde otro puerto |
+
+## 🐳 Docker
+
+El contenedor habla **HTTP plano en el 8080**; el **HTTPS lo termina Caddy** (u
+otro reverse proxy) por delante. **No hay TLS dentro del contenedor.**
+
+```bash
+# Construir la imagen y levantar el contenedor
+docker compose up -d --build
+
+# Ver logs en vivo
+docker compose logs -f
+```
+
+| Archivo                          | Para qué                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `Dockerfile`                     | Multi-stage: compila el backend Go y empaqueta binario + frontend. Cada línea está comentada. |
+| `.dockerignore`                  | Excluye `.git`, `docs/`, `receptor.cpp`, binarios locales, etc. del build context. |
+| `docker-compose.yml`             | Servicio/contenedor `led-arduino`, publica `8080:8080` y se une a la red `reverse_proxy_net`. |
+| `docs/caddy/Caddyfile`           | **Ejemplo** de reverse proxy: termina el HTTPS y reenvía a `led-arduino:8080` (incluye el WebSocket). |
+| `docs/caddy/docker-compose.yml`  | **Ejemplo** del compose de Caddy, enganchado a la red `reverse_proxy_net`. |
+
+Estructura del repo:
+
+```
+go.mod / go.sum / *.go    → backend (módulo Go en la raíz)
+frontend/                 → sitio estático servido por el backend
+docs/                     → ENDPOINTS.md, PROTOCOLO.md
+docs/examples/            → receptor.cpp (firmware) y docs/caddy/ (ejemplos de Caddy)
+Dockerfile / docker-compose.yml / .dockerignore
+```
+
+El frontend usa rutas **relativas** y `window.location.origin`, así que funciona
+tal cual detrás del proxy (Caddy también maneja el upgrade de WebSocket).
+
+Si Caddy corre en la **misma red Docker**, no hace falta publicar el puerto:
+Caddy llega por el nombre del servicio (`http://led-arduino:8080`). En ese caso
+renombra `reverse_proxy_net` por tu red compartida y marcala como `external: true`.
+Los ejemplos listos para copiar están en `docs/caddy/`.
+

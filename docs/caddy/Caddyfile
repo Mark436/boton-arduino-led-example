@@ -1,0 +1,32 @@
+# =============================================================================
+# Caddyfile (EJEMPLO) - solo para documentar la estructura
+# =============================================================================
+#
+# Caddy es quien termina el HTTPS/TLS. El contenedor de la app NO maneja TLS:
+# este archivo sólo reenvía el tráfico (HTTP y WebSocket) hacia la app.
+#
+# El destino "led-arduino:8080" es el NOMBRE DEL SERVICIO de la app dentro de la
+# red Docker compartida "reverse_proxy_net" (ver el docker-compose de la raíz).
+# Por eso Caddy y la app deben estar en la MISMA red.
+# =============================================================================
+
+# Dominio público. Caddy gestiona el certificado TLS (Let's Encrypt) solo.
+led.example.com {
+	# Reenvía TODO (incluido el WebSocket de /ws/{sessionID}) al contenedor.
+	# Caddy maneja automáticamente el "upgrade" a WebSocket, no hace falta nada más.
+	reverse_proxy led-arduino:8080
+
+	# Log de accesos a la salida estándar del contenedor (opcional).
+	log {
+		output stdout
+	}
+}
+
+# -----------------------------------------------------------------------------
+# Variante para probar en LOCAL sin dominio real ni certificado público.
+# Descomentá y ajustá según necesites; usa una CA interna de Caddy.
+# -----------------------------------------------------------------------------
+# localhost {
+# 	reverse_proxy led-arduino:8080
+# 	tls internal
+# }
