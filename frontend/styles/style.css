@@ -25,29 +25,40 @@ body {
 }
 
 .icon-btn {
-  position: absolute;
-  top: 14px;
+  width: 46px;
+  height: 46px;
   display: flex;
+  position:absolute;
+  top: 14px;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: none;
-  border-radius: 50%;
-  background: #eef1f5;
-  color: #555;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50% /50%;
+  color: #566579;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(231, 238, 247, 0.78)
+  );
+
+  box-shadow:
+    0 5px 12px rgba(53, 72, 99, 0.10),
+    inset 0 2px 3px rgba(255, 255, 255, 1),
+    inset 0 -2px 4px rgba(150, 168, 191, 0.15);
   cursor: pointer;
   transition:
-    background 0.2s,
-    color 0.2s;
-}
+    box-shadow 0.2s ease,
+    background 0.2s ease,
+
+    color 0.2s ease;
+ }
 
 .icon-btn[hidden] {
   display: none !important;
 }
 
 .icon-btn:hover {
-  background: #4a90d9;
+  opacity:80%;
   color: #fff;
 }
 
