@@ -4,9 +4,12 @@
 *.dll
 *.so
 *.dylib
-backend/boton-arduino-led-example
-/backend/main
-/backend/server
+# Ejecutables compilados en la raiz (nombre = modulo: LED-websocket)
+/LED-websocket
+/LED-websocket.exe
+/app
+/main
+/server
 
 # Go
 *.test
