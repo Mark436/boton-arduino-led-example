@@ -82,6 +82,9 @@
         <div id="qrContent" class="qr-box">
           <!-- AQUÍ VA EL QR (svg) -->
         </div>
+        <button id="qrRefresh" class="qr-refresh" type="button">
+          Nueva sesión
+        </button>
       </div>
     </div>
 
@@ -133,15 +136,30 @@
 
     <div id="toast" class="toast" role="status" hidden></div>
 
+    <div id="confirmModal" class="modal-overlay" hidden>
+      <div class="modal">
+        <h2 id="confirmTitle">¿Nueva sesión?</h2>
+        <p id="confirmText" class="confirm-text"></p>
+        <div class="confirm-actions">
+          <button id="confirmCancel" class="btn-secondary" type="button">
+            Cancelar
+          </button>
+          <button id="confirmOk" class="btn-primary" type="button">
+            Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-    <!-- Orden importante: config.js define los globales (va en frontend/); el resto
-         de scripts vive en scripts/ y script.js es el que arranca todo. -->
+    <!-- Orden importante: config.js define los globales (va en frontend/), session.js
+         define Session/session y script.js (clase App) arranca todo. -->
     <script src="scripts/serial.js"></script>
     <script src="config.js"></script>
+    <script src="scripts/session.js"></script>
     <script src="scripts/users-api.js"></script>
     <script src="scripts/ui.js"></script>
-    <script src="scripts/session.js"></script>
     <script src="scripts/realtime.js"></script>
-    <script src="scripts/script.js"></script>
+    <script src="scripts/script.js" type="module"></script>
   </body>
 </html>

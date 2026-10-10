@@ -1,24 +1,38 @@
 /* ------------------------------------------------------------------ */
-/* WebSocket (PENDIENTE 4)                                             */
+/* Realtime (WebSocket)                                                */
+/*                                                                    */
+/* Envuelve el socket de sesión. Distingue un cierre propio de uno     */
+/* inesperado con `intentional` y avisa cuando el handshake abrió      */
+/* (onOpen) para que App sepa si el fallo fue al conectar o una caída. */
 /* ------------------------------------------------------------------ */
-
-/* PARA QUÉ: envolver la conexión para que el resto del código solo
-   llame a realtime.send({tipo, dato}) sin saber de WebSocket.
-   DÓNDE SE USA: se instancia TRAS el join/create, con sessionId y
-   clientId, pasándole handleServerMessage (ver script.js).
-
-   Esqueleto (descomenta y completa):
-
 class Realtime {
-  constructor(sessionId, clientId, onMessage) {
+  constructor(
+    sessionId,
+    clientId,
+    {
+      onMessage = () => {},
+      onOpen = () => {},
+      onClose = () => {},
+      onError = (event) => console.error(event),
+    } = {},
+  ) {
+    this.intentional = false;
+    this.opened = false;
+
     const proto = location.protocol === "https:" ? "wss" : "ws";
     this.ws = new WebSocket(
-      proto + "://" + location.host + "/ws/" + sessionId +
-        "?client=" + clientId,
+      `${proto}://${location.host}/ws/${sessionId}?client=${clientId}`,
     );
+
+    this.ws.onopen = () => {
+      this.opened = true;
+      onOpen();
+    };
     this.ws.onmessage = (event) => onMessage(JSON.parse(event.data));
-    this.ws.onclose = () => {};   // aquí reconectar si quieres
-    this.ws.onerror = () => console.error("Error de WebSocket");
+    this.ws.onerror = (event) => onError(event);
+    this.ws.onclose = () => {
+      if (!this.intentional) onClose();
+    };
   }
 
   send(mensaje) {
@@ -26,6 +40,10 @@ class Realtime {
       this.ws.send(JSON.stringify(mensaje));
     }
   }
-}
 
-*/
+  // Cierra a propósito: el onclose no dispara la lógica de reconexión.
+  close() {
+    this.intentional = true;
+    this.ws.close();
+  }
+}

@@ -1,86 +1,128 @@
 /* ------------------------------------------------------------------ */
-/* Lógica de sesión (frontend): crear/unirse, URL del QR y render      */
+/* Session (frontend): ciclo de vida de la sala                        */
+/*                                                                    */
+/* Encapsula los IDs, la persistencia en sessionStorage, la creación   */
+/* de la sesión del host (POST /session), la entrada del visitor       */
+/* (POST /session/{id}) y la URL que viaja en el QR.                   */
 /* ------------------------------------------------------------------ */
 
-/* El host crea su sesión contra el backend (POST /session) y guarda
-   su sessionId/clientId igual que el visitor. */
-// PENDIENTE (3): para el visitor no se llama a esto; en su lugar, si hay
-// ?sessionId, se hace POST /session/{sessionId}, se guarda data.clientId y se
-// arranca el WS. El host también debe arrancar el WS tras crear la sesión.
-async function ensureHostSession() {
-  if (session.sessionId && session.clientId) return;
+class Session {
+  constructor() {
+    this.sessionId = sessionStorage.getItem("sessionId");
+    this.clientId = sessionStorage.getItem("clientId");
 
-  try {
-    const res = await fetch("/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        encendido: false,
-        arduinoConectado: false,
-        maxViewers: state.maxViewers,
-      }),
-    });
-    if (!res.ok) throw new Error();
+    // El QR apunta a /visitor?sessionId=<id>: el visitor llega identificado.
+    const urlSessionId = new URLSearchParams(window.location.search).get(
+      "sessionId",
+    );
+    if (urlSessionId) {
+      this.sessionId = urlSessionId;
+      sessionStorage.setItem("sessionId", urlSessionId);
+    }
+    this.role = ROLE;
+  }
 
-    const data = await res.json();
-    session.sessionId = data.sessionId;
-    session.clientId = data.clientId;
-    saveSession();
-  } catch (_err) {
-    toast.show("No se pudo crear la sesión en el servidor.");
+  get ready() {
+    return Boolean(this.sessionId && this.clientId);
+  }
+
+  save() {
+    sessionStorage.setItem("sessionId", this.sessionId ?? "");
+    sessionStorage.setItem("clientId", this.clientId ?? "");
+  }
+
+  /* Deja al cliente "como nuevo" (borra ids + sessionStorage). */
+  reset() {
+    this.sessionId = null;
+    this.clientId = null;
+    sessionStorage.removeItem("sessionId");
+    sessionStorage.removeItem("clientId");
+  }
+
+  /* El host reinicia la sesión: el backend expulsa a todos los visitors,
+     borra la sala vieja y crea una nueva conservando el estado. Devuelve los
+     ids nuevos o false si falló. */
+  async restart() {
+    if (!this.sessionId || !this.clientId) return false;
+
+    try {
+      const res = await fetch(
+        `/session/${this.sessionId}/reset?client=${this.clientId}`,
+        { method: "POST" },
+      );
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      this.sessionId = data.sessionId;
+      this.clientId = data.clientId;
+      this.save();
+      return true;
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  /* URL que irá dentro del QR. */
+  visitorUrl() {
+    return this.sessionId && this.role === "host"
+      ? `${window.location.origin}/visitor?sessionId=${this.sessionId}`
+      : "";
+  }
+
+  /* El host crea su sesión y guarda sessionId/clientId. */
+  async createHost(initial = {}) {
+    if (this.ready) return true;
+
+    try {
+      const res = await fetch("/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          encendido: initial.encendido ?? false,
+          arduinoConectado: initial.arduinoConectado ?? false,
+          maxViewers: initial.maxViewers ?? 1,
+        }),
+      });
+      if (!res.ok) throw new Error();
+
+      const data = await res.json();
+      this.sessionId = data.sessionId;
+      this.clientId = data.clientId;
+      this.save();
+      return true;
+    } catch (_err) {
+      toast.show("No se pudo crear la sesión en el servidor.");
+      return false;
+    }
+  }
+
+  /* El visitor entra a la sala. Devuelve el estado inicial o null. */
+  async joinVisitor() {
+    if (!this.sessionId) {
+      toast.show("Falta el sessionId para entrar a la sesión.");
+      return null;
+    }
+
+    try {
+      const res = await fetch(`/session/${this.sessionId}`, { method: "POST" });
+      if (!res.ok) {
+        toast.show(
+          res.status === 406
+            ? "La sesión está llena."
+            : "No se pudo entrar a la sesión.",
+        );
+        return null;
+      }
+
+      const data = await res.json();
+      this.clientId = data.clientId;
+      this.save();
+      return data;
+    } catch (_err) {
+      toast.show("No se pudo contactar con el servidor.");
+      return null;
+    }
   }
 }
 
-/* PENDIENTE (3): join del visitor, ANTES de abrir el WS. Esqueleto:
- *
- * async function joinAsVisitor() {
- *   const res = await fetch("/session/" + session.sessionId, { method: "POST" });
- *   if (!res.ok) { toast.show("No se pudo entrar a la sesión."); return; }
- *   const data = await res.json();
- *   session.clientId = data.clientId;
- *   saveSession();
- *   applySessionState({
- *     encendido: data.ledEncendido,
- *     arduinoConectado: data.arduinoConectado,
- *     maxViewers: data.maxViewers,
- *   });
- * }
- */
-
-/* URL que irá dentro del QR cuando se genere. */
-function visitorUrl() {
-  return session.sessionId
-    ? `${window.location.origin}/visitor?sessionId=${session.sessionId}`
-    : "";
-}
-
-/* ------------------------------------------------------------------ */
-/* Render de la interfaz desde el estado central                       */
-/* ------------------------------------------------------------------ */
-function renderLed() {
-  ledBtn.classList.toggle("on", state.encendido);
-  ledBtn.classList.toggle("off", !state.encendido);
-  ledLabel.textContent = state.encendido ? "ON" : "OFF";
-}
-
-function renderVisitorStatus() {
-  statusEl.textContent = state.arduinoConectado
-    ? "Arduino conectado (host)"
-    : "Arduino sin conectar (host)";
-}
-
-/* Punto de entrada cuando el backend sincronice el estado de sesión. */
-function applySessionState(partial) {
-  Object.assign(state, partial);
-  renderLed();
-  if (ROLE === "visitor") renderVisitorStatus();
-}
-
-function applyRole() {
-  if (ROLE === "visitor") {
-    document.querySelectorAll(".host-panel").forEach((el) => {
-      el.hidden = true;
-    });
-    renderVisitorStatus();
-  }
-}
+const session = new Session();

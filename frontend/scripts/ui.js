@@ -11,7 +11,7 @@ class Toast {
     this.timer = null;
   }
 
-  show(message, duration = 3500) {
+  show(message, duration = 2000) {
     clearTimeout(this.timer);
     this.el.textContent = message;
     this.el.hidden = false;
@@ -54,11 +54,14 @@ class Modal {
 }
 
 class QrModal extends Modal {
-  constructor(overlay, openBtn, closeBtn) {
+  constructor(overlay, openBtn, closeBtn, refreshBtn, onReset) {
     super(overlay);
     this.contentEl = document.getElementById("qrContent");
     openBtn.addEventListener("click", () => this.open());
     closeBtn.addEventListener("click", () => this.close());
+    if (refreshBtn && onReset) {
+      refreshBtn.addEventListener("click", () => onReset());
+    }
   }
 
   open() {
@@ -74,7 +77,7 @@ class QrModal extends Modal {
       return;
     }
 
-    const url = visitorUrl();
+    const url = session.visitorUrl();
 
     // El QR (o la URL) es un enlace: al hacer clic lleva al visitor,
     // además de poder escanearse.
@@ -109,6 +112,48 @@ class QrModal extends Modal {
     code.textContent = url;
     link.appendChild(code);
     this.contentEl.appendChild(link);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Modal de confirmación (devuelve una promesa con true/false)         */
+/* ------------------------------------------------------------------ */
+class ConfirmModal {
+  constructor(overlay) {
+    this.overlay = overlay;
+    this.titleEl = document.getElementById("confirmTitle");
+    this.textEl = document.getElementById("confirmText");
+    this.okBtn = document.getElementById("confirmOk");
+    this.cancelBtn = document.getElementById("confirmCancel");
+    this._resolve = null;
+
+    this.okBtn.addEventListener("click", () => this._close(true));
+    this.cancelBtn.addEventListener("click", () => this._close(false));
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) this._close(false);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") this._close(false);
+    });
+  }
+
+  ask({ title = "Confirmar", text = "" } = {}) {
+    this.titleEl.textContent = title;
+    this.textEl.textContent = text;
+    this.overlay.hidden = false;
+    return new Promise((resolve) => {
+      this._resolve = resolve;
+    });
+  }
+
+  _close(value) {
+    if (this.overlay.hidden) return;
+    this.overlay.hidden = true;
+    if (this._resolve) {
+      const resolve = this._resolve;
+      this._resolve = null;
+      resolve(value);
+    }
   }
 }
 
