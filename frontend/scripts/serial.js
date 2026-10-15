@@ -50,16 +50,16 @@ class SerialConnection {
 
   async _connectDev() {
     this.connecting = true;
-    this._notify("Conectando... (modo dev)");
+    this._notify(`Conectando... (modo ${DEMO_MODE ? "demo" : "dev"})`);
 
     await new Promise((resolve) => setTimeout(resolve, 400));
 
     this.connecting = false;
     this.connected = true;
     console.log(
-      `[serial:dev] conexión simulada @${this.baudRate} (sin Arduino real)`,
+      `[serial:${DEMO_MODE ? "demo" : "dev"}] conexión simulada @${this.baudRate} (sin Arduino real)`,
     );
-    this._notify("Conectado (modo dev)");
+    this._notify(`Conectado (modo ${DEMO_MODE ? "demo" : "dev"})`);
     return true;
   }
 
@@ -67,8 +67,8 @@ class SerialConnection {
     if (this.dev) {
       if (!this.connected) return true;
       this.connected = false;
-      console.log("[serial:dev] desconexión simulada");
-      this._notify("Desconectado (modo dev)");
+      console.log("[serial:demo] desconexión simulada");
+      this._notify("Desconectado (modo demo)");
       return true;
     }
 
@@ -92,7 +92,7 @@ class SerialConnection {
 
     if (this.dev) {
       const led = data === "1" ? "ON" : "OFF";
-      console.log(`[serial:dev] TX "${data}" → LED ${led}`);
+      console.log(`[serial:demo] TX "${data}" → LED ${led}`);
       return true;
     }
 

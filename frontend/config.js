@@ -12,7 +12,9 @@ const ROLE = window.location.pathname === "/visitor" ? "visitor" : "host";
 
 /* Simula el serial por consola (no requiere Arduino).
    Cambiar a true para desarrollar el resto de la interfaz. */
-const DEV_MODE = false;
+const urlParams = new URLSearchParams(window.location.search);
+const DEMO_MODE = urlParams.get("demo") !== null;
+const DEV_MODE = false; // siempre false; el modo demo usa la misma lógica de simulación
 
 /* Estado central de la sesión. El backend es la fuente de verdad;
    cuando llega un mensaje del servidor se aplica con App.applyState(). */

@@ -11,14 +11,16 @@ import (
 // Server es el registro global de sesiones. Su Mutex protege el mapa y nunca se
 // sostiene mientras se opera dentro de una Session (para no encadenar locks).
 type Server struct {
-	Sessions map[string]*Session
-	Mutex    sync.RWMutex
+	Sessions      map[string]*Session
+	Mutex         sync.RWMutex
+	MaxActiveSessions int // máximo de sesiones concurrentes (0 = sin límite)
 }
 
 // NewServer crea el registro de sesiones vacío.
 func NewServer() *Server {
 	return &Server{
-		Sessions: make(map[string]*Session),
+		Sessions:          make(map[string]*Session),
+		MaxActiveSessions: 10, // máximo 10 sesiones activas simultáneas
 	}
 }
 
@@ -36,10 +38,7 @@ func (server *Server) RegisterRoutes(mux *http.ServeMux) {
 
 // createSession (POST /session) crea la sala y a su HOST.
 // Body opcional: {encendido, arduinoConectado, maxViewers}.
-// Devuelve {sessionId, clientId}: el clientId del host, que el frontend guarda
-// y usa después para abrir el WebSocket.
 func (server *Server) createSession(writer http.ResponseWriter, request *http.Request) {
-	// EN ESTA FUNC SE AGREGA EL TOKEN DE SESION SI LO AUTENTICAMOS
 	if request.Method != http.MethodPost {
 		http.Error(writer, "Metodo no permitido", http.StatusMethodNotAllowed)
 		return
@@ -61,6 +60,15 @@ func (server *Server) createSession(writer http.ResponseWriter, request *http.Re
 	if datos.MaxViewers != nil && *datos.MaxViewers > maxViewers {
 		maxViewers = *datos.MaxViewers
 	}
+
+	// Verificar límite de sesiones activas
+	server.Mutex.Lock()
+	if server.MaxActiveSessions > 0 && len(server.Sessions) >= server.MaxActiveSessions {
+		server.Mutex.Unlock()
+		http.Error(writer, "No hay sesiones disponibles. Límite de 10 sesiones alcanzado.", http.StatusTooManyRequests)
+		return
+	}
+	server.Mutex.Unlock()
 
 	host := &Client{
 		ID:   uuid.New().String(),

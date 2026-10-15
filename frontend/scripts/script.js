@@ -12,7 +12,7 @@
 
 class App {
   constructor() {
-    this.connection = new SerialConnection({ dev: DEV_MODE });
+    this.connection = new SerialConnection({ dev: DEV_MODE || DEMO_MODE });
     this.realtime = null;
     this.qrModal = null;
     this.usersModal = null;
@@ -43,8 +43,8 @@ class App {
       state.arduinoConectado = connected;
       statusEl.textContent = message;
       connectBtn.textContent = connected
-        ? `Desconectar${DEV_MODE ? " (dev)" : ""}`
-        : `Conectar Arduino (COM)${DEV_MODE ? " · dev" : ""}`;
+      ? `Desconectar${DEV_MODE || DEMO_MODE ? " (demo)" : ""}`
+      : `Conectar Arduino (COM)${DEV_MODE || DEMO_MODE ? " · demo" : ""}`;
       connectBtn.classList.toggle("connected", connected);
     };
 
