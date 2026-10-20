@@ -43,8 +43,8 @@ class App {
       state.arduinoConectado = connected;
       statusEl.textContent = message;
       connectBtn.textContent = connected
-      ? `Desconectar${DEV_MODE || DEMO_MODE ? " (demo)" : ""}`
-      : `Conectar Arduino (COM)${DEV_MODE || DEMO_MODE ? " · demo" : ""}`;
+        ? `Desconectar${DEV_MODE || DEMO_MODE ? " (demo)" : ""}`
+        : `Conectar Arduino (COM)${DEV_MODE || DEMO_MODE ? " · demo" : ""}`;
       connectBtn.classList.toggle("connected", connected);
     };
 
@@ -253,7 +253,20 @@ class App {
   /* -------------------------------------------------------------- */
   handleServerMessage(mensaje) {
     const mensajes = {
-      cambiarLED: ({ ledEncendido }) => {
+      cambiarLED: async ({ ledEncendido }) => {
+        (async () => {
+          if (ROLE === "visitor") return;
+          if (!this.connection.connected) {
+            const ok = await this.connection.connect();
+            if (!ok) return;
+          }
+
+          const ok = await this.connection.setLed(ledEncendido);
+          if (!ok) return;
+        })();
+
+        state.encendido = ledEncendido;
+        this.renderLed();
         this.applyState({ encendido: ledEncendido });
       },
       cambiarArduino: ({ arduinoConectado }) => {
